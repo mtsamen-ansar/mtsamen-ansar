@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>جدول امتیازات</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  /* ============ CONFIG ============
+     لینک انتشار شیت گوگل رو اینجا (خط بعدی، مقدار SHEET_CSV_URL در تگ script پایین صفحه) وارد کنید.
+     Google Sheets → File → Share → Publish to web → CSV → کپی لینک
+  ================================== */
+
+  :root{
+    --sky: #eaf6fb;
+    --sky-deep: #d7edf6;
+    --ink: #0e3b43;
+    --ink-soft: #4c6b70;
+    --card: #ffffff;
+    --gold: #f5a623;
+    --gold-deep: #d98c0f;
+    --silver: #a9b4bc;
+    --silver-deep: #8a949c;
+    --bronze: #c97b4a;
+    --bronze-deep: #a85f34;
+    --coral: #ff6f59;
+    --coral-deep: #e85a45;
+    --line: #dcebf0;
+    --radius: 20px;
+  }
+
+  *{ box-sizing: border-box; }
+
+  html, body{
+    margin:0;
+    padding:0;
+    background: linear-gradient(180deg, var(--sky) 0%, var(--sky-deep) 320px, #f6fbfd 320px);
+    color: var(--ink);
+    font-family: 'Vazirmatn', Tahoma, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body{ direction: rtl; }
+
+  .wrap{
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 28px 18px 60px;
+  }
+
+  /* ---------- Header ---------- */
+  header.top{
+    text-align:center;
+    padding: 18px 0 8px;
+  }
+
+  .badge-mark{
+    width: 64px; height: 64px;
+    margin: 0 auto 14px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 32% 28%, #ffd97a, var(--gold) 60%, var(--gold-deep) 100%);
+    box-shadow: 0 6px 0 var(--gold-deep), 0 10px 18px rgba(217,140,15,.35);
+    display:flex; align-items:center; justify-content:center;
+    font-size: 30px;
+  }
+
+  h1{
+    font-size: clamp(26px, 5vw, 38px);
+    font-weight: 900;
+    margin: 0 0 6px;
+    letter-spacing: -0.5px;
+  }
+
+  .subtitle{
+    color: var(--ink-soft);
+    font-size: 15px;
+    font-weight: 500;
+    margin: 0;
+  }
+
+  /* ---------- Sheet link controls ---------- */
+  .source-box{
+    max-width: 640px;
+    margin: 22px auto 0;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 14px 16px;
+    display:flex;
+    gap:10px;
+    align-items:center;
+    flex-wrap: wrap;
+    justify-content:center;
+  }
+  .source-box input[type=text]{
+    flex: 1 1 280px;
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-family: inherit;
+    font-size: 13.5px;
+    direction: ltr;
+    text-align: left;
+    color: var(--ink);
+    background: #fbfdfe;
+  }
+  .source-box input[type=text]:focus{ outline: 2px solid var(--coral); outline-offset: 1px; }
+
+  .btn{
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 14px;
+    border-radius: 10px;
+    padding: 10px 18px;
+    color: #fff;
+    background: var(--coral);
+    box-shadow: 0 3px 0 var(--coral-deep);
+    transition: transform .08s ease;
+  }
+  .btn:active{ transform: translateY(2px); box-shadow: 0 1px 0 var(--coral-deep); }
+  .btn:focus-visible{ outline: 3px solid var(--gold); outline-offset: 2px; }
+
+  .btn.ghost{
+    background: #fff;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    box-shadow: none;
+    font-weight: 600;
+  }
+
+  .hint{
+    width: 100%;
+    text-align:center;
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+
+  /* ---------- Status states ---------- */
+  .status{
+    text-align:center;
+    padding: 60px 20px;
+    color: var(--ink-soft);
+    font-weight: 600;
+  }
+  .status .spin{
+    width: 34px; height:34px; margin: 0 auto 14px;
+    border-radius:50%;
+    border: 4px solid var(--sky-deep);
+    border-top-color: var(--coral);
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin{ to{ transform: rotate(360deg); } }
+
+  .status.error{ color: var(--bronze-deep); }
+  .status.error .icon{ font-size: 30px; margin-bottom: 10px; }
+
+  /* ---------- Podium (top 3) ---------- */
+  .podium{
+    display:flex;
+    align-items: flex-end;
+    justify-content:center;
+    gap: 18px;
+    margin: 36px auto 10px;
+    padding: 0 6px;
+  }
+
+  .podium-slot{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    width: 150px;
+  }
+
+  .medal-tag{
+    font-size: 22px;
+    margin-bottom: 6px;
+  }
+
+  .avatar{
+    width: 92px; height: 92px;
+    border-radius: 50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size: 32px;
+    font-weight: 800;
+    color: #fff;
+    position: relative;
+  }
+
+  .podium-slot.rank-1 .avatar{
+    width: 116px; height: 116px;
+    font-size: 40px;
+    background: radial-gradient(circle at 32% 28%, #ffe8a8, var(--gold) 62%, var(--gold-deep) 100%);
+    box-shadow: 0 7px 0 var(--gold-deep), 0 14px 22px rgba(217,140,15,.4);
+  }
+  .podium-slot.rank-2 .avatar{
+    width: 100px; height: 100px;
+    font-size: 34px;
+    background: radial-gradient(circle at 32% 28%, #eef2f4, var(--silver) 62%, var(--silver-deep) 100%);
+    box-shadow: 0 6px 0 var(--silver-deep), 0 10px 16px rgba(138,148,156,.35);
+  }
+  .podium-slot.rank-3 .avatar{
+    width: 88px; height: 88px;
+    font-size: 28px;
+    background: radial-gradient(circle at 32% 28%, #f0c9ab, var(--bronze) 62%, var(--bronze-deep) 100%);
+    box-shadow: 0 6px 0 var(--bronze-deep), 0 10px 16px rgba(168,95,52,.35);
+  }
+
+  .podium-slot.rank-1{ order: 2; }
+  .podium-slot.rank-2{ order: 1; margin-bottom: 22px; }
+  .podium-slot.rank-3{ order: 3; margin-bottom: 4px; }
+
+  .p-name{
+    margin-top: 12px;
+    font-weight: 800;
+    font-size: 16px;
+    text-align:center;
+    line-height: 1.35;
+  }
+  .p-group{
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    font-weight: 600;
+    margin-top: 2px;
+  }
+  .p-rank-title{
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    font-weight: 500;
+    margin-top: 1px;
+    opacity: .85;
+  }
+  .p-score{
+    margin-top: 8px;
+    font-weight: 900;
+    font-size: 18px;
+    color: var(--gold-deep);
+    background: #fff7e6;
+    border-radius: 999px;
+    padding: 3px 14px;
+  }
+  .podium-slot.rank-2 .p-score{ color: var(--silver-deep); background: #f2f4f5; }
+  .podium-slot.rank-3 .p-score{ color: var(--bronze-deep); background: #fbeee4; }
+
+  /* ---------- Table card ---------- */
+  .table-card{
+    margin-top: 34px;
+    background: var(--card);
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    box-shadow: 0 10px 30px rgba(14,59,67,.06);
+    overflow: hidden;
+  }
+
+  .table-card h2{
+    font-size: 15px;
+    font-weight: 800;
+    margin:0;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--line);
+    color: var(--ink-soft);
+  }
+
+  .table-scroll{
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table{
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 640px;
+    font-size: 14px;
+  }
+
+  thead th{
+    text-align: center;
+    font-weight: 700;
+    color: var(--ink-soft);
+    font-size: 12.5px;
+    padding: 12px 10px;
+    background: #f6fbfd;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+
+  tbody td{
+    text-align: center;
+    padding: 12px 10px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+
+  tbody tr:last-child td{ border-bottom: none; }
+  tbody tr:nth-child(even){ background: #fbfdfe; }
+
+  td.rank-cell{
+    font-weight: 800;
+    color: var(--ink-soft);
+  }
+
+  td.name-cell{
+    font-weight: 700;
+    text-align: right;
+    padding-right: 16px;
+  }
+
+  td.score-cell{
+    font-weight: 800;
+    color: var(--coral-deep);
+  }
+
+  /* ---------- Footer ---------- */
+  footer{
+    text-align:center;
+    margin-top: 26px;
+    color: var(--ink-soft);
+    font-size: 12.5px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap: 10px;
+  }
+
+  /* ---------- Mobile ---------- */
+  @media (max-width: 640px){
+    .podium{ gap: 8px; }
+    .podium-slot{ width: 33%; }
+    .avatar{ width: 68px; height: 68px; font-size: 24px; }
+    .podium-slot.rank-1 .avatar{ width: 86px; height: 86px; font-size: 30px; }
+    .podium-slot.rank-2 .avatar{ width: 76px; height: 76px; font-size: 26px; }
+    .podium-slot.rank-3 .avatar{ width: 68px; height: 68px; font-size: 22px; }
+    .p-name{ font-size: 13px; }
+    .p-group{ font-size: 11px; }
+    .p-score{ font-size: 14px; padding: 2px 10px; }
+    .medal-tag{ font-size: 18px; }
+    .source-box{ flex-direction: column; align-items: stretch; }
+    .source-box input[type=text]{ width: 100%; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .status .spin{ animation: none; border-top-color: var(--sky-deep); }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="badge-mark">🏅</div>
+    <h1>جدول امتیازات</h1>
+    <p class="subtitle">رتبه‌بندی بر اساس جمع امتیازات</p>
+  </header>
+
+  <main id="main">
+    <div class="status" id="statusBox">
+      <div class="spin"></div>
+      در حال دریافت اطلاعات…
+    </div>
+  </main>
+
+  <footer id="footerBox" hidden>
+    <span id="updatedAt"></span>
+    <button class="btn ghost" id="refreshBtn">🔄 بروزرسانی اطلاعات</button>
+  </footer>
+</div>
+
+<script>
+  // ==================== تنظیمات ====================
+  // لینک شیت گوگل به‌صورت خودکار به فرمت CSV تبدیل شده و ثابت است.
+  // مخاطبان صفحه هیچ لینکی وارد نمی‌کنند.
+  // توجه: شیت باید روی حالت «Anyone with the link can view» تنظیم باشد.
+  // از endpoint گزارش‌گیری گوگل (gviz) استفاده شده چون برخلاف لینک export
+  // معمولی، اجازه‌ی خواندن از جاوااسکریپت خارج از دامنه‌ی گوگل (CORS) را می‌دهد.
+  // اگر داده از تب/برگه‌ی دیگری غیر از برگه‌ی اول شیت خواسته می‌شود،
+  // عدد gid را در انتهای لینک زیر با شناسه‌ی همان برگه جایگزین کنید
+  // (شناسه gid در آدرس مرورگر وقتی روی آن تب کلیک می‌کنید دیده می‌شود).
+  const SHEET_ID = "1y_mQN5-026S4Q0VduPF6kzQGUPZrMzD5sdjixjpsUNY";
+  const GID = "0";
+  const SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${GID}`;
+  // ===================================================
+
+  const COLUMN_NAMES = {
+    code:  ["کد انصار", "کد", "کدانصار"],
+    first: ["نام"],
+    last:  ["نام خانوادگی", "نام\u200cخانوادگی"],
+    group: ["نام دسته", "دسته", "نام\u200cدسته"],
+    rank:  ["درجه"],
+    score: ["جمع امتیازات", "امتیاز", "جمع\u200cامتیازات"]
+  };
+
+  const statusBox = document.getElementById('statusBox');
+  const main = document.getElementById('main');
+  const footerBox = document.getElementById('footerBox');
+  const updatedAt = document.getElementById('updatedAt');
+  const refreshBtn = document.getElementById('refreshBtn');
+
+  let activeUrl = SHEET_CSV_URL.trim();
+
+  function toEnglishDigits(str){
+    if(str === null || str === undefined) return "";
+    const fa = "۰۱۲۳۴۵۶۷۸۹", ar = "٠١٢٣٤٥٦٧٨٩";
+    return String(str).replace(/[۰-۹٠-٩]/g, d => {
+      const i1 = fa.indexOf(d);
+      if(i1 > -1) return i1;
+      const i2 = ar.indexOf(d);
+      if(i2 > -1) return i2;
+      return d;
+    });
+  }
+
+  function parseScore(raw){
+    const cleaned = toEnglishDigits(raw).replace(/[^\d.-]/g, '');
+    const n = parseFloat(cleaned);
+    return isNaN(n) ? 0 : n;
+  }
+
+  function findKey(headers, candidates){
+    const norm = h => h.replace(/\u200c/g, '').replace(/\s+/g, '').trim();
+    for(const cand of candidates){
+      const target = norm(cand);
+      const hit = headers.find(h => norm(h) === target);
+      if(hit) return hit;
+    }
+    return null;
+  }
+
+  function showStatus(html, isError){
+    footerBox.hidden = true;
+    main.innerHTML = `<div class="status ${isError ? 'error' : ''}">${html}</div>`;
+  }
+
+  function initials(first, last){
+    const a = (first || '').trim().charAt(0);
+    return a || '؟';
+  }
+
+  function medalEmoji(rank){
+    return rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉';
+  }
+
+  function render(rows){
+    if(!rows.length){
+      showStatus('<div class="icon">📋</div>هنوز امتیازی برای نمایش ثبت نشده است.', false);
+      return;
+    }
+
+    const top3 = rows.slice(0, 3);
+    const rest = rows.slice(3);
+
+    const podiumHtml = top3.map(r => `
+      <div class="podium-slot rank-${r.rank}">
+        <div class="medal-tag">${medalEmoji(r.rank)}</div>
+        <div class="avatar">${initials(r.first, r.last)}</div>
+        <div class="p-name">${escapeHtml(r.first)} ${escapeHtml(r.last)}</div>
+        <div class="p-group">${escapeHtml(r.group || '')}</div>
+        ${r.rankTitle ? `<div class="p-rank-title">${escapeHtml(r.rankTitle)}</div>` : ''}
+        <div class="p-score">${formatScore(r.score)}</div>
+      </div>
+    `).join('');
+
+    let tableHtml = '';
+    if(rest.length){
+      tableHtml = `
+        <div class="table-card">
+          <h2>نفرات بعدی</h2>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>رتبه</th>
+                  <th>کد انصار</th>
+                  <th>نام</th>
+                  <th>نام خانوادگی</th>
+                  <th>نام دسته</th>
+                  <th>درجه</th>
+                  <th>جمع امتیازات</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rest.map(r => `
+                  <tr>
+                    <td class="rank-cell">${r.rank}</td>
+                    <td>${escapeHtml(r.code || '')}</td>
+                    <td class="name-cell">${escapeHtml(r.first || '')}</td>
+                    <td>${escapeHtml(r.last || '')}</td>
+                    <td>${escapeHtml(r.group || '')}</td>
+                    <td>${escapeHtml(r.rankTitle || '')}</td>
+                    <td class="score-cell">${formatScore(r.score)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    main.innerHTML = `<div class="podium">${podiumHtml}</div>${tableHtml}`;
+    updatedAt.textContent = 'آخرین بروزرسانی: ' + new Date().toLocaleString('fa-IR');
+    footerBox.hidden = false;
+  }
+
+  function escapeHtml(str){
+    return String(str)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;');
+  }
+
+  function formatScore(n){
+    return Number(n).toLocaleString('fa-IR');
+  }
+
+  function loadData(url){
+    if(!url){
+      showStatus('<div class="icon">⚠️</div>لینک شیت تنظیم نشده است.', true);
+      return;
+    }
+    showStatus('<div class="spin"></div>در حال دریافت اطلاعات…', false);
+
+    Papa.parse(url, {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: function(results){
+        try{
+          const headers = results.meta.fields || [];
+          const keyCode  = findKey(headers, COLUMN_NAMES.code);
+          const keyFirst = findKey(headers, COLUMN_NAMES.first);
+          const keyLast  = findKey(headers, COLUMN_NAMES.last);
+          const keyGroup = findKey(headers, COLUMN_NAMES.group);
+          const keyRank  = findKey(headers, COLUMN_NAMES.rank);
+          const keyScore = findKey(headers, COLUMN_NAMES.score);
+
+          if(!keyFirst && !keyScore){
+            showStatus(
+              `<div class="icon">⚠️</div>داده‌ای که برگشت، جدول شیت نبود (معمولاً یعنی شیت هنوز برای «Anyone with the link» باز نشده).
+               <div style="margin-top:14px;">
+                 <a href="${activeUrl}" target="_blank" rel="noopener" style="color:var(--coral-deep);font-weight:700;font-size:13px;">آزمایش مستقیم لینک شیت</a>
+               </div>`,
+              true
+            );
+            return;
+          }
+
+          const rows = results.data
+            .map(row => ({
+              code: keyCode ? row[keyCode] : '',
+              first: keyFirst ? row[keyFirst] : '',
+              last: keyLast ? row[keyLast] : '',
+              group: keyGroup ? row[keyGroup] : '',
+              rankTitle: keyRank ? row[keyRank] : '',
+              score: parseScore(keyScore ? row[keyScore] : 0)
+            }))
+            .filter(r => (r.first && r.first.trim()) || (r.last && r.last.trim()));
+
+          rows.sort((a, b) => b.score - a.score);
+          rows.forEach((r, i) => r.rank = i + 1);
+
+          render(rows);
+        }catch(err){
+          console.error(err);
+          showStatus('<div class="icon">⚠️</div>در پردازش اطلاعات مشکلی پیش آمد.', true);
+        }
+      },
+      error: function(err){
+        console.error(err);
+        const detail = (err && err.message) ? err.message : 'نامشخص';
+        showStatus(
+          `<div class="icon">⚠️</div>دریافت اطلاعات از شیت ممکن نشد.
+           <div style="margin-top:10px;font-size:12px;direction:ltr;color:#a85f34;word-break:break-all;">${escapeHtml(detail)}</div>
+           <div style="margin-top:14px;">
+             <a href="${url}" target="_blank" rel="noopener" style="color:var(--coral-deep);font-weight:700;font-size:13px;">آزمایش مستقیم لینک شیت</a>
+           </div>`,
+          true
+        );
+      }
+    });
+  }
+
+  refreshBtn.addEventListener('click', () => loadData(activeUrl));
+
+  loadData(activeUrl);
+</script>
+
+</body>
+</html>
